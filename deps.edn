@@ -1,0 +1,2 @@
+{:deps {me.raynes/fs {:mvn/version "1.4.6"}
+        ofx-clj {:mvn/version "0.1"}}}
