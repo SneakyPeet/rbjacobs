@@ -1,2 +1,4 @@
 {:deps {me.raynes/fs {:mvn/version "1.4.6"}
-        ofx-clj {:mvn/version "0.1"}}}
+        ofx-clj {:mvn/version "0.1"}
+        cheshire {:mvn/version "5.8.1"}
+        clj-http {:mvn/version "3.9.1"}}}

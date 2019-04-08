@@ -1,80 +1,90 @@
 (ns rb.core
-  (:require [clojure.string :as string]
-            [me.raynes.fs :as fs]
-            [me.raynes.fs.compression :as compression]
-            [ofx-clj.core :as ofx]))
+  (:require [rb.ynab :as ynab]
+            [rb.ofx :as ofx]
+            [clj-http.client :as http]))
 
 
-(def download-path "resources/downloads")
-(def zip-e ".zip")
-(def ofx-e ".ofx")
-
-;; utils
-
-(defn index-by [k coll]
-  (->> coll
-       (map (juxt k identity))
-       (into {})))
+(defn get-token [] (slurp "secret.txt"))
 
 
-;; file helpers
-
-(defn get-files-of-type [type dir]
-  (->> (fs/file dir)
-       file-seq
-       (filter #(and (fs/file? %) (= (fs/extension %) type)))))
-
-
-;; ofx
-
-(defn message->transactions [message]
-  (let [transactions (get-in message [:message :transaction-list :transactions])
-        account-number (:account-number (get-in message [:message :account]))]
-    (->> transactions
-         (map #(-> %
-                   (select-keys [:amount :id :date-posted :memo])
-                   (assoc :account-number account-number))))))
+(defn get-client []
+  (ynab/client (get-token)
+               (fn [request]
+                 (-> request
+                     (assoc :throw-exceptions false)
+                     http/request
+                     ynab/parse-response))))
 
 
-(defn ofx->transactions [ofx-data]
-  (let [banking-data (get (index-by :type ofx-data) "banking") ]
-    (->> banking-data
-         :messages
-         (map message->transactions)
-         (reduce into))))
+(defn get-config []
+  (-> (read-string (slurp "config.edn"))
+      (update :accounts #(->> %
+                              (map (juxt :bank-account-number identity))
+                              (into {})))))
 
 
-(defn ofx-file-data->transactions [ofx-file-data]
-  (->> ofx-file-data
-       ofx->transactions))
+(defn get-budgets
+  "returns a map with budget name as key and ynab budget id as value"
+  []
+  (let [client (get-client)]
+    (->> ynab/budgets
+         client
+         ynab/->data
+         :budgets
+         (map (juxt :name :id))
+         (into {}))))
 
 
-(defn ofx-file->transactions [file]
-  (->> file
-       ofx/parse
-       ofx-file-data->transactions))
+(defn get-accounts
+  "returns a map with account name as key and ynab account id as value.
+   expects budget-id should be set in config"
+  ([] (get-accounts (get-config)))
+  ([config]
+   (let [client (get-client)
+         budget-id (:budget-id config)]
+     (->> (ynab/accounts budget-id)
+          client
+          ynab/->data
+          :accounts
+          (map (juxt :name :id))
+          (into {})))))
 
-;; process
 
-(defn process-zip [file]
-  (let [target-dir (str download-path "/" (fs/name file))]
-    (compression/unzip file target-dir)
-    (let [transactions
-          (->> (get-files-of-type ofx-e target-dir)
-               (map ofx-file->transactions)
-               (reduce into)
-               doall)]
-      (fs/delete-dir target-dir)
-      transactions)))
+(defn process-ofx-zip-transactions
+  "Parses all .ofx files contained in .zip files in the resources/downloads folder and returns a list of transactions"
+  ([] (process-ofx-zip-transactions (get-config)))
+  ([config]
+   (->> (ofx/process)
+        (map (fn [{:keys [amount date-posted id memo account-number]}]
+               (let [{:keys [account-id name]} (get-in config [:accounts account-number])]
+                 (assoc
+                  (ynab/->transaction account-id
+                                      (ynab/->date date-posted)
+                                      (ynab/->amount amount)
+                                      memo)
+                  :account-name name)))))))
 
-(defn process-zips [files]
-  (->> files
-       (map process-zip)
-       (reduce into)))
+
+(defn push-transactions-to-ynab
+  ([] (push-transactions-to-ynab (get-client) (process-ofx-zip-transactions)))
+  ([transactions] (push-transactions-to-ynab (get-client) transactions))
+  ([client transactions]
+   (let [budget-id (:budget-id (get-config))]
+     (for [[account-name transactions] (group-by :account-name transactions)]
+       (let [response (->> (ynab/create-transactions budget-id transactions)
+                           client
+                           ynab/parse-response)
+             error? (ynab/response-error? response)]
+         (merge
+          {:account-name account-name
+           :transactions (count transactions)}
+          (when-not error?
+            {:duplicates (count (:duplicate_import_ids (ynab/->data response)))})
+          (when error?
+            {:error? (get-in response [:body :error])})))))))
 
 
 (comment
-  (let [files (get-files-of-type zip-e download-path)]
-    (->> files
-         (process-zips)
-         )))
+  (->> (process-ofx-zip-transactions)
+       push-transactions-to-ynab)
+  )

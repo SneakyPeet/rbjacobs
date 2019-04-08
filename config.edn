@@ -1,0 +1,8 @@
+{:budget-id "some-id"            ; (rb.core/get-budgets)
+ :accounts                       ; (rb.core/get-accounts)
+ [{:name "Cheque"
+   :bank-account-number "abc123" ; your bank account number
+   :account_id "321cba"          ; ynab account id}
+  {:name "Credit"
+   :bank-account-number  "123123***65545345"
+   :account-id "dgfdfggdf-72f-4b08-a95c-4d823443037"}]}
