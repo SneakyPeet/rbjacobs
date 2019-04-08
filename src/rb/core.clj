@@ -4,7 +4,14 @@
             [clj-http.client :as http]))
 
 
-(defn get-token [] (slurp "secret.txt"))
+(defn get-config []
+  (-> (read-string (slurp "config.edn"))
+      (update :accounts #(->> %
+                              (map (juxt :bank-account-number identity))
+                              (into {})))))
+
+
+(defn get-token [] (:ynab-token (get-config)))
 
 
 (defn get-client []
