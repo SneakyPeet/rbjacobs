@@ -1,6 +1,7 @@
 (ns rb.core
   (:require [rb.ynab :as ynab]
             [rb.ofx :as ofx]
+            [rb.fnb :as fnb]
             [clj-http.client :as http]))
 
 
@@ -94,4 +95,6 @@
 (comment
   (->> (process-ofx-zip-transactions)
        push-transactions-to-ynab)
+
+  (fnb/download-ofx (get-config))
   )

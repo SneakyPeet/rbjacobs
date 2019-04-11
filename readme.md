@@ -15,3 +15,11 @@
 ## What If I want a different workflow?
 You are free to use the various functions in `rb.ofx` and `rb.core` to parse your .ofx or .zip files and send those transactions to ynab
 
+## Auto downloading from fnb
+[etaoin](https://github.com/igrishaev/etaoin) is used for browser automation.
+
+Install Chrome Driver and make sure your chrome version matches. `brew cask install chromedriver`.
+
+If you want to use a different browser simply swap out the `driver` in `rb/fnb.clj` and see the etaoin website for install details.
+
+
