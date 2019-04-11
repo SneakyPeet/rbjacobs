@@ -24,8 +24,17 @@
   (let [account-numbers (->> (e/query-all driver {:name :accountNumber})
                              (map #(e/get-element-inner-html-el driver %))
                              (map string/trim))
-        account-links (e/query-all driver [{:name :nickname}])]
+        account-links (->> (e/query-all driver [{:name :nickname}])
+                           (map #(e/child driver % {:tag :a})))]
     (zipmap account-numbers account-links)))
+
+
+(defn- back-to-accounts [driver]
+  (e/click driver {:tag :div :id :menuBtn})
+  (e/wait driver 1)
+  (let [accounts-btn (second (e/query-all driver {:tag :div :class :iconButton}))]
+    (e/click-el driver accounts-btn))
+  (e/wait driver 2))
 
 
 (defn- download-transaction-history-for-account [driver account-number]
@@ -35,28 +44,25 @@
         dropdown-q {:tag :div :id :downloadFormat_dropId}
         option-q {:tag :li :class "dropdown-item" :data-value "ofx"}
         button-q {:tag :div :id :mainDownloadBtn}]
-    (doto driver
-      (e/click-el link-e)
-      (e/wait-visible download-button-q)
-      (e/wait 2)
-      (e/click download-button-q)
-      (e/wait-visible dropdown-q)
-      (e/wait 2)
-      (e/click dropdown-q)
-      (e/wait-visible option-q)
-      (e/wait 2)
-      (e/click option-q)
-      (e/wait 2)
-      (e/click button-q)
-      (e/wait 2))))
-
-
-(defn- back-to-accounts [driver]
-  (e/click driver {:tag :div :id :menuBtn})
-  (e/wait driver 1)
-  (let [accounts-btn (second (e/query-all driver {:tag :div :class :iconButton}))]
-    (e/click-el driver accounts-btn))
-  (e/wait driver 2))
+    (if link-e
+      (doto driver
+        (e/scroll-down (- (:y (e/get-element-location-el driver link-e)) 500))
+        (e/wait 1)
+        (e/click-el link-e)
+        (e/wait-visible download-button-q)
+        (e/wait 2)
+        (e/click download-button-q)
+        (e/wait-visible dropdown-q)
+        (e/wait 2)
+        (e/click dropdown-q)
+        (e/wait-visible option-q)
+        (e/wait 2)
+        (e/click option-q)
+        (e/wait 2)
+        (e/click button-q)
+        (e/wait 2)
+        (back-to-accounts))
+      (prn "No Link Found"))))
 
 
 (defn download-ofx [config]
@@ -68,5 +74,4 @@
     (browse-to-accounts d)
     (doseq [{:keys [bank-account-number name]} accounts]
       (prn (str "Downloading: " name))
-      (download-transaction-history-for-account d bank-account-number)
-      (back-to-accounts d))))
+      (download-transaction-history-for-account d bank-account-number))))
