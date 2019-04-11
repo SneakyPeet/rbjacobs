@@ -2,6 +2,7 @@
   (:require [etaoin.api :as e]
             [clojure.string :as string]))
 
+
 (defn- driver [download-dir] (e/chrome {:download-dir download-dir}))
 
 (defn- login [driver username password]
@@ -68,10 +69,11 @@
 (defn download-ofx [config]
   (let [{:keys [fnb downloads-folder accounts]} config
         {:keys [username password]} fnb
-        accounts (vals accounts)
-        d (driver downloads-folder)]
-    (login d username password)
-    (browse-to-accounts d)
-    (doseq [{:keys [bank-account-number name]} accounts]
-      (prn (str "Downloading: " name))
-      (download-transaction-history-for-account d bank-account-number))))
+        accounts (vals accounts)]
+    (e/with-driver :chrome {:download-dir downloads-folder} d
+      (login d username password)
+      (browse-to-accounts d)
+      (doseq [{:keys [bank-account-number name]} accounts]
+        (prn (str "Downloading: " name))
+        (download-transaction-history-for-account d bank-account-number)))
+    ))
