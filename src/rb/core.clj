@@ -3,7 +3,8 @@
             [rb.ofx :as ofx]
             [rb.fnb :as fnb]
             [clj-http.client :as http]
-            [me.raynes.fs :as fs]))
+            [me.raynes.fs :as fs]
+            [clojure.pprint :as pprint]))
 
 
 (defn get-config
@@ -100,7 +101,7 @@
     (fnb/download-ofx secondary-account)
     (->> (process-ofx-zip-transactions full)
          (push-transactions-to-ynab full)
-         (#(do (prn %) %)))))
+         (#(do (pprint/pprint %) %)))))
 
 
 (defn -main [& args]
