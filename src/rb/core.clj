@@ -90,22 +90,46 @@
 ;;; CUSTOM
 
 
-(defn run-example []
+(defn run-app []
   (let [primary-account (get-config "primary.edn")
         secondary-account (get-config "secondary.edn")
         downloads (:downloads-folder primary-account)
-        full (update primary-account :accounts merge (:accounts secondary-account))]
-    (fs/delete-dir (fs/file downloads))
-    (fs/mkdir downloads)
-    (fnb/download-ofx primary-account)
-    (fnb/download-ofx secondary-account)
-    (->> (process-ofx-zip-transactions full)
-         (push-transactions-to-ynab full)
-         (#(do (pprint/pprint %) %)))))
+        full (update primary-account :accounts merge (:accounts secondary-account))
+        clean #(do
+                 (fs/delete-dir (fs/file downloads))
+                 (fs/mkdir downloads))
+        primary #(fnb/download-ofx primary-account)
+        secondary #(fnb/download-ofx secondary-account)
+        ynab (fn []
+               (->> (process-ofx-zip-transactions full)
+                    (push-transactions-to-ynab full)
+                    (#(do (pprint/pprint %) %))))
+        all #(do
+               (clean)
+               (primary)
+               (secondary)
+               (ynab))
+        get-input #(do (print "> ") (flush) (read-line))]
+    (println "** Choose")
+    (println "1. Run All")
+    (println "2. Clean")
+    (println "3. Primary FNB")
+    (println "4. Secondary FNB")
+    (println "5. Ynab")
+    (loop [k (get-input)]
+      (let [r (case k
+                "1" (all)
+                "2" (clean)
+                "3" (primary)
+                "4" (secondary)
+                "5" (ynab)
+                "exit")]
+        (when (not= "exit" r)
+          (recur (get-input)))))))
 
 
 (defn -main [& args]
-  (run-example))
+  (run-app))
 
 
 (comment
