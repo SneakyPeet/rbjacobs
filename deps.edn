@@ -2,4 +2,5 @@
         ofx-clj      {:mvn/version "0.1"}
         cheshire     {:mvn/version "5.8.1"}
         clj-http     {:mvn/version "3.9.1"}
-        etaoin       {:mvn/version "0.3.2"}}}
+        etaoin       {:mvn/version "0.3.2"}
+        hickory      {:mvn/version "0.7.1"}}}
