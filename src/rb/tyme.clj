@@ -65,6 +65,33 @@
                parse-transaction-row)))))
 
 
+(defn- goal-save-transactions [driver el]
+  (doto driver
+    (e/click-el el)
+    (e/wait-visible transaction-row))
+  (let [transactions (doall (parse-transaction-table driver))]
+    (doto driver
+      (route-home)
+      (route-goal-saves))
+    transactions))
+
+
+(defn- all-goal-save-transactions [driver]
+  (let [get-goal-saves #(e/query-all driver {:tag :a :class "go-to-detail-link font-bold"})]
+    (loop [x 0
+           transactions []]
+      (let [goal-saves (get-goal-saves)]
+        (if (<= (- (count goal-saves) x) 0)
+          transactions
+          (let [el (nth goal-saves x)
+                title (e/get-element-inner-html-el driver el)
+                trans (->> (goal-save-transactions driver el)
+                           (map #(assoc % :account title))
+                           doall)]
+            (recur (inc x)
+                   (into transactions trans))))))))
+
+
 (comment
   (def driver (e/chrome))
   (def username "")
@@ -72,9 +99,11 @@
 
   (doto driver
     (login username password)
-    (route-everyday-account))
+    (route-goal-saves))
 
-  (parse-transaction-table driver)
+  (all-goal-save-transactions driver)
+
+
 
 
 
