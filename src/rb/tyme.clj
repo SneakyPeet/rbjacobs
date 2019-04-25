@@ -86,26 +86,24 @@
           (let [el (nth goal-saves x)
                 title (e/get-element-inner-html-el driver el)
                 trans (->> (goal-save-transactions driver el)
-                           (map #(assoc % :account title))
+                           (map #(assoc % :account title :type :goal-save :index x))
                            doall)]
             (recur (inc x)
                    (into transactions trans))))))))
 
-
-(comment
-  (def driver (e/chrome))
-  (def username "")
-  (def password "")
-
-  (doto driver
-    (login username password)
-    (route-goal-saves))
-
-  (all-goal-save-transactions driver)
-
-
-
-
-
-
-  )
+(defn fetch-transactions [username password every-day-ynab-account-id goal-save-ynab-account-id]
+  (e/with-driver :chrome {} driver
+    (login driver username password)
+    (e/wait driver 10)
+    (route-everyday-account driver)
+    (let [everyday-transactions  (->> (parse-transaction-table driver)
+                                      (map #(assoc % :type :every-day))
+                                      doall)]
+      (route-home driver)
+      (route-goal-saves driver)
+      (let [goal-save-transactions (all-goal-save-transactions driver)]
+        (->> (concat everyday-transactions goal-save-transactions)
+             (map (fn [{:keys [date amount description type index]}]
+                    (if (= :every-day type)
+                      (ynab/->transaction every-day-ynab-account-id date amount description)
+                      (ynab/->transaction index goal-save-ynab-account-id date amount description)))))))))

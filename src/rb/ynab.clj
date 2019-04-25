@@ -91,13 +91,15 @@
 
 
 (defn ->transaction
-  [account-id date amount payee]
-  {:post (s/valid? ::transaction %)}
-  {:account_id account-id
-   :date date
-   :amount amount
-   :payee_name payee
-   :import_id (str "RB:" amount ":" date)})
+  ([account-id date amount payee] (->transaction nil account-id date amount payee))
+  ([prefix account-id date amount payee]
+   {:post (s/valid? ::transaction %)}
+   (let [prefix (if prefix (str "RB_" prefix ":") "RB:")]
+     {:account_id account-id
+      :date date
+      :amount amount
+      :payee_name payee
+      :import_id (str prefix amount ":" date)})))
 
 
 (defn create-transactions
