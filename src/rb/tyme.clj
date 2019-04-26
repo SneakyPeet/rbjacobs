@@ -54,7 +54,8 @@
                       string/trim)
      :amount (-> (s/select (s/class "amount") data) first :content first
                  (string/replace #"R" "") (string/replace #" " "")
-                 read-string)}))
+                 read-string
+                 ynab/->amount)}))
 
 
 (defn- parse-transaction-table [driver]
@@ -91,7 +92,10 @@
             (recur (inc x)
                    (into transactions trans))))))))
 
-(defn fetch-transactions [username password every-day-ynab-account-id goal-save-ynab-account-id]
+(def ^:private indexes ["A" "B" "C" "D" "E" "F" "G" "H" "I" "J"])
+(defn- ->index [prefix n] (str prefix (nth indexes n)))
+
+(defn fetch-transactions [prefix username password every-day-ynab-account-id goal-save-ynab-account-id]
   (e/with-driver :chrome {} driver
     (login driver username password)
     (e/wait driver 10)
@@ -104,6 +108,7 @@
       (let [goal-save-transactions (all-goal-save-transactions driver)]
         (->> (concat everyday-transactions goal-save-transactions)
              (map (fn [{:keys [date amount description type index]}]
-                    (if (= :every-day type)
-                      (ynab/->transaction every-day-ynab-account-id date amount description)
-                      (ynab/->transaction index goal-save-ynab-account-id date amount description)))))))))
+                    (-> (if (= :every-day type)
+                          (ynab/->transaction prefix every-day-ynab-account-id date amount description)
+                          (ynab/->transaction (->index prefix index) goal-save-ynab-account-id date amount description))
+                        (assoc :account-name (name type))))))))))

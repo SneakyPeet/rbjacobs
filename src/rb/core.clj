@@ -2,6 +2,7 @@
   (:require [rb.ynab :as ynab]
             [rb.ofx :as ofx]
             [rb.fnb :as fnb]
+            [rb.tyme :as tyme]
             [clj-http.client :as http]
             [me.raynes.fs :as fs]
             [clojure.pprint :as pprint]))
@@ -89,6 +90,18 @@
 
 ;;; CUSTOM
 
+(defn read-password [prompt]
+  (let [p-chars (.readPassword (System/console) "%s" (into-array [prompt]))]
+    (apply str p-chars)))
+
+
+(defn push-tyme-transactions-to-ynab [config]
+  (let [{:keys [username every-day goal-save prefix]} (:tyme config)
+        prompt (str "Password for " username ": ")
+        password (read-password prompt)
+        transactions (tyme/fetch-transactions prefix username password every-day goal-save)]
+    (push-transactions-to-ynab config transactions)))
+
 
 (defn run-app []
   (let [primary-account (get-config "primary.edn")
@@ -100,6 +113,8 @@
                  (fs/mkdir downloads))
         primary #(fnb/download-ofx primary-account)
         secondary #(fnb/download-ofx secondary-account)
+        primary-tyme-ynab #(pprint/pprint (push-tyme-transactions-to-ynab primary-account))
+        secondary-tyme-ynab #(pprint/pprint (push-tyme-transactions-to-ynab secondary-account))
         ynab (fn []
                (->> (process-ofx-zip-transactions full)
                     (push-transactions-to-ynab full)
@@ -108,6 +123,8 @@
                (clean)
                (primary)
                (secondary)
+               (primary-tyme-ynab)
+               (secondary-tyme-ynab)
                (ynab))
         get-input #(do (print "> ") (flush) (read-line))]
     (println "** Choose")
@@ -115,14 +132,18 @@
     (println "2. Clean")
     (println "3. Primary FNB")
     (println "4. Secondary FNB")
-    (println "5. Ynab")
+    (println "5. Primary Tyme Ynab")
+    (println "6. Secondary Tyme Ynab")
+    (println "7. Ynab FNB")
     (loop [k (get-input)]
       (let [r (case k
                 "1" (all)
                 "2" (clean)
                 "3" (primary)
                 "4" (secondary)
-                "5" (ynab)
+                "5" (primary-tyme-ynab)
+                "6" (secondary-tyme-ynab)
+                "7" (ynab)
                 "exit")]
         (when (not= "exit" r)
           (recur (get-input)))))))
@@ -133,6 +154,7 @@
 
 
 (comment
+  (get-accounts (get-config "primary.edn"))
 
   (fnb/download-ofx (get-config))
   )

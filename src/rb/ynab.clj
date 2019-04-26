@@ -94,7 +94,7 @@
   ([account-id date amount payee] (->transaction nil account-id date amount payee))
   ([prefix account-id date amount payee]
    {:post (s/valid? ::transaction %)}
-   (let [prefix (if prefix (str "RB_" prefix ":") "RB:")]
+   (let [prefix (if prefix (str "RB" prefix ":") "RB:")]
      {:account_id account-id
       :date date
       :amount amount
