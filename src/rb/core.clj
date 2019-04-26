@@ -95,12 +95,16 @@
     (apply str p-chars)))
 
 
-(defn push-tyme-transactions-to-ynab [config]
-  (let [{:keys [username every-day goal-save prefix]} (:tyme config)
-        prompt (str "Password for " username ": ")
-        password (read-password prompt)
-        transactions (tyme/fetch-transactions prefix username password every-day goal-save)]
-    (push-transactions-to-ynab config transactions)))
+(defn push-tyme-transactions-to-ynab
+  ([config]
+   (let [{:keys [username]} (:tyme config)
+         prompt (str "Password for " username ": ")
+         password (read-password prompt)]
+     (push-tyme-transactions-to-ynab config password)))
+  ([config password]
+   (let [{:keys [username every-day goal-save prefix]} (:tyme config)
+         transactions (tyme/fetch-transactions prefix username password every-day goal-save)]
+     (push-transactions-to-ynab config transactions))))
 
 
 (defn run-app []

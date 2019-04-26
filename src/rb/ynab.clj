@@ -98,7 +98,7 @@
      {:account_id account-id
       :date date
       :amount amount
-      :payee_name payee
+      :payee_name (subs payee 0 (min (count payee) 49))
       :import_id (str prefix amount ":" date)})))
 
 
