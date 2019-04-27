@@ -3,6 +3,7 @@
             [rb.ofx :as ofx]
             [rb.fnb :as fnb]
             [rb.tyme :as tyme]
+            [rb.history :as history]
             [clj-http.client :as http]
             [me.raynes.fs :as fs]
             [clojure.pprint :as pprint]))
@@ -74,19 +75,24 @@
   ([config] (push-transactions-to-ynab (get-client config) (process-ofx-zip-transactions config)))
   ([config transactions]
    (let [client (get-client config)
-         budget-id (:budget-id config)]
-     (for [[account-name transactions] (group-by :account-name transactions)]
-       (let [response (->> (ynab/create-transactions budget-id transactions)
-                           client
-                           ynab/parse-response)
-             error? (ynab/response-error? response)]
-         (merge
-          {:account-name account-name
-           :transactions (count transactions)}
-          (when-not error?
-            {:duplicates (count (:duplicate_import_ids (ynab/->data response)))})
-          (when error?
-            {:error? (get-in response [:body :error])})))))))
+         budget-id (:budget-id config)
+         transactions (filter history/new? transactions)]
+     (if (empty? transactions)
+       {:account-name "No New Transactions" :transactions 0}
+       (for [[account-name transactions] (group-by :account-name transactions)]
+         (let [response (->> (ynab/create-transactions budget-id transactions)
+                             client
+                             ynab/parse-response)
+               error? (ynab/response-error? response)]
+           (when-not error?
+             (history/add transactions))
+           (merge
+            {:account-name account-name
+             :transactions (count transactions)}
+            (when-not error?
+              {:duplicates (count (:duplicate_import_ids (ynab/->data response)))})
+            (when error?
+              {:error? (get-in response [:body :error])}))))))))
 
 ;;; CUSTOM
 
