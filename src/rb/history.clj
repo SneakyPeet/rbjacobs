@@ -25,7 +25,7 @@
 
 
 (defn new? [transaction]
-  (not (contains? @*history (:import-id transaction))))
+  (not (contains? @*history (:import_id transaction))))
 
 
 (defn add [transactions]
