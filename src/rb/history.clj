@@ -31,4 +31,4 @@
 (defn add [transactions]
   (swap! *history
          into
-         (map :import-id transactions)))
+         (map :import_id transactions)))
