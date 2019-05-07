@@ -6,7 +6,8 @@
             [rb.history :as history]
             [clj-http.client :as http]
             [me.raynes.fs :as fs]
-            [clojure.pprint :as pprint]))
+            [clojure.pprint :as pprint]
+            [clojure.java.shell :as sh]))
 
 
 (defn get-config
@@ -129,31 +130,47 @@
                (->> (process-ofx-zip-transactions full)
                     (push-transactions-to-ynab full)
                     (#(do (pprint/pprint %) %))))
+        knab #(pprint/pprint (sh/sh "bash" "static.sh" :dir "../ynab/"))
         all #(do
                (clean)
                (primary)
                (secondary)
+               (ynab)
                (primary-tyme-ynab)
-               (secondary-tyme-ynab)
-               (ynab))
+               (secondary-tyme-ynab))
+        fnb-only #(do
+                    (clean)
+                    (primary)
+                    (secondary)
+                    (ynab))
+        tyme-only #(do
+                     (primary-tyme-ynab)
+                     (secondary-tyme-ynab))
         get-input #(do (print "> ") (flush) (read-line))]
     (println "** Choose")
     (println "1. Run All")
-    (println "2. Clean")
-    (println "3. Primary FNB")
-    (println "4. Secondary FNB")
-    (println "5. Ynab FNB")
-    (println "6. Primary Tyme Ynab")
-    (println "7. Secondary Tyme Ynab")
+    (println "2. FNB only")
+    (println "3. Tyme Only")
+    (println "4. Knab")
+    (println "5. Clean")
+    (println "6. Primary FNB")
+    (println "7. Secondary FNB")
+    (println "8. Ynab FNB")
+    (println "9. Primary Tyme Ynab")
+    (println "10. Secondary Tyme Ynab")
+
     (loop [k (get-input)]
       (let [r (case k
                 "1" (all)
-                "2" (clean)
-                "3" (primary)
-                "4" (secondary)
-                "6" (primary-tyme-ynab)
-                "7" (secondary-tyme-ynab)
-                "5" (ynab)
+                "5" (clean)
+                "6" (primary)
+                "7" (secondary)
+                "9" (primary-tyme-ynab)
+                "10" (secondary-tyme-ynab)
+                "8" (ynab)
+                "2" (fnb-only)
+                "3" (tyme-only)
+                "4" (knab)
                 "exit")]
         (when (not= "exit" r)
           (recur (get-input)))))))
